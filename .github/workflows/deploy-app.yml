@@ -4,38 +4,38 @@ on:
 workflow_dispatch:
 inputs:
 app_slug:
-description: App slug to deploy
+description: "App slug to deploy"
 required: true
 type: string
 
 ```
   deployment_id:
-    description: OpenDock deployment id
+    description: "OpenDock deployment id"
     required: true
     type: string
 
   callback_url:
-    description: OpenDock callback URL
+    description: "OpenDock callback URL"
     required: true
     type: string
 
   callback_secret:
-    description: OpenDock callback signing secret
+    description: "OpenDock callback signing secret"
     required: true
     type: string
 
   image:
-    description: Docker image
+    description: "Docker image"
     required: false
     type: string
 
   port:
-    description: Container port
+    description: "Container port"
     required: false
     type: string
 
   ttl_minutes:
-    description: Time to live
+    description: "Time to live"
     required: false
     type: string
 ```
@@ -46,69 +46,22 @@ contents: read
 jobs:
 deploy:
 runs-on: ubuntu-latest
-steps:
-- name: Notify start
-env:
-APP_SLUG: ${{ inputs.app_slug }}
-DEPLOYMENT_ID: ${{ inputs.deployment_id }}
-CALLBACK_URL: ${{ inputs.callback_url }}
-CALLBACK_SECRET: ${{ inputs.callback_secret }}
-run: |
-node <<'NODE'
-const crypto = require('crypto');
-async function post(payload) {
-const body = JSON.stringify(payload);
-const signature = crypto.createHmac('sha256', process.env.CALLBACK_SECRET).update(body).digest('hex');
-const response = await fetch(process.env.CALLBACK_URL, {
-method: 'POST',
-headers: { 'content-type': 'application/json', 'x-signature': signature },
-body,
-});
-if (!response.ok) throw new Error(await response.text());
-}
-post({
-deployment_id: process.env.DEPLOYMENT_ID,
-status: 'deploying',
-progress: 55,
-log: `▸ GitHub Actions runner started for ${process.env.APP_SLUG}`,
-});
-NODE
 
 ```
-  - name: Run scaffold deployment
+steps:
+  - name: Notify start
     run: |
-      echo "Preparing ${{ inputs.app_slug }} deployment scaffold"
+      echo "Starting deployment"
+      echo "App: ${{ inputs.app_slug }}"
       echo "Image: ${{ inputs.image }}"
       echo "Port: ${{ inputs.port }}"
       echo "TTL: ${{ inputs.ttl_minutes }}"
+
+  - name: Simulate deployment
+    run: |
       sleep 10
 
   - name: Notify complete
-    env:
-      APP_SLUG: ${{ inputs.app_slug }}
-      DEPLOYMENT_ID: ${{ inputs.deployment_id }}
-      CALLBACK_URL: ${{ inputs.callback_url }}
-      CALLBACK_SECRET: ${{ inputs.callback_secret }}
-      REPOSITORY: ${{ github.repository }}
     run: |
-      node <<'NODE'
-      const crypto = require('crypto');
-      async function post(payload) {
-        const body = JSON.stringify(payload);
-        const signature = crypto.createHmac('sha256', process.env.CALLBACK_SECRET).update(body).digest('hex');
-        const response = await fetch(process.env.CALLBACK_URL, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json', 'x-signature': signature },
-          body,
-        });
-        if (!response.ok) throw new Error(await response.text());
-      }
-      post({
-        deployment_id: process.env.DEPLOYMENT_ID,
-        status: 'ready',
-        progress: 100,
-        url: `https://github.com/${process.env.REPOSITORY}/actions`,
-        log: '✓ GitHub workflow completed.',
-      });
-      NODE
+      echo "Deployment complete"
 ```
